@@ -4,6 +4,13 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftSyntaxPlus",
+    platforms: [
+        .macOS(.v10_15),
+        .iOS(.v13),
+        .tvOS(.v13),
+        .watchOS(.v6),
+        .macCatalyst(.v13),
+    ],
     products: [
         .library(
             name: "SwiftSyntaxPlus",
@@ -18,7 +25,8 @@ let package = Package(
         .target(
             name: "SwiftSyntaxPlus",
             dependencies: [
-                .product(name: "SwiftSyntax", package: "swift-syntax")
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
             ]
         ),
         .testTarget(
