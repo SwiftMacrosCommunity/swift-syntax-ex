@@ -22,39 +22,8 @@ extension PatternBindingSyntax {
         }
 
         set {
-            var newAccessor: Accessor?
-
-            switch accessor {
-            case let .getter(body):
-                guard let newValue else { return }
-                newAccessor = .accessors(.init(accessors: AccessorListSyntax {
-                    AccessorDeclSyntax(accessorKind: .keyword(.get), body: body)
-                    newValue
-                }))
-            case let .accessors(block):
-                var accessors = block.accessors
-                for (i, accessor) in block.accessors.enumerated() {
-                    guard accessor.accessorKind.tokenKind == .keyword(.set) else {
-                        continue
-                    }
-                    if let newValue {
-                        accessors = accessors.replacing(childAt: i, with: newValue)
-                    } else {
-                        accessors = accessors.removing(childAt: i)
-                    }
-                    break
-                }
-                let newBlock = block.with(\.accessors, accessors)
-                newAccessor = .accessors(newBlock)
-            case .none:
-                // NOTE: Be careful that setter cannot be implemented without a getter.
-                guard let newValue else { return }
-                newAccessor = .accessors(.init(accessors: AccessorListSyntax {
-                    newValue
-                }))
-            }
-
-            accessor = newAccessor
+            // NOTE: Be careful that setter cannot be implemented without a getter.
+            setNewAccessor(kind: .keyword(.set), newValue: newValue)
         }
     }
 
@@ -122,3 +91,74 @@ extension PatternBindingSyntax {
     }
 }
 
+extension PatternBindingSyntax {
+    public var willSet: AccessorDeclSyntax? {
+        get {
+            if case let .accessors(list) = accessor {
+                return list.accessors.first(where: {
+                    $0.accessorKind.tokenKind == .keyword(.willSet)
+                })
+            }
+            return nil
+        }
+        set {
+            // NOTE: Be careful that willSet cannot be implemented without a setter.
+            setNewAccessor(kind: .keyword(.willSet), newValue: newValue)
+        }
+    }
+
+    public var didSet: AccessorDeclSyntax? {
+        get {
+            if case let .accessors(list) = accessor {
+                return list.accessors.first(where: {
+                    $0.accessorKind.tokenKind == .keyword(.didSet)
+                })
+            }
+            return nil
+        }
+        set {
+            // NOTE: Be careful that didSet cannot be implemented without a setter.
+            setNewAccessor(kind: .keyword(.willSet), newValue: newValue)
+        }
+    }
+}
+
+extension PatternBindingSyntax {
+    // NOTE: - getter requires extra steps and should not be used.
+    private mutating func setNewAccessor(kind: TokenKind, newValue: AccessorDeclSyntax?) {
+        precondition(kind != .keyword(.get))
+        
+        var newAccessor: Accessor?
+
+        switch accessor {
+        case let .getter(body):
+            guard let newValue else { return }
+            newAccessor = .accessors(.init(accessors: AccessorListSyntax {
+                AccessorDeclSyntax(accessorKind: .keyword(.get), body: body)
+                newValue
+            }))
+        case let .accessors(block):
+            var accessors = block.accessors
+            for (i, accessor) in block.accessors.enumerated() {
+                guard accessor.accessorKind.tokenKind == kind else {
+                    continue
+                }
+                if let newValue {
+                    accessors = accessors.replacing(childAt: i, with: newValue)
+                } else {
+                    accessors = accessors.removing(childAt: i)
+                }
+                break
+            }
+            let newBlock = block.with(\.accessors, accessors)
+            newAccessor = .accessors(newBlock)
+        case .none:
+            guard let newValue else { return }
+            newAccessor = .accessors(.init(accessors: AccessorListSyntax {
+                newValue
+            }))
+        }
+
+        self.accessor = newAccessor
+    }
+}
